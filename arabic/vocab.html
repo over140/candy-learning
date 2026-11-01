@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vocabulary · Arabic Revision</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main>
+  <h1>🗂️ Vocabulary</h1>
+  <p class="lead">Pick a group, then choose <b>List</b>, <b>Flashcards</b> or <b>Quiz</b>.</p>
+
+  <div class="tabs" id="groups"></div>
+  <div class="tabs" id="modes">
+    <button data-mode="list" class="active">📋 List</button>
+    <button data-mode="flash">🃏 Flashcards</button>
+    <button data-mode="quiz">❓ Quiz (10 questions)</button>
+  </div>
+
+  <div id="view"></div>
+</main>
+<script src="assets/app.js"></script>
+<script src="data/vocab.js"></script>
+<script>
+renderHeader("vocab");
+
+const state = { group: "all", mode: "list", search: "" };
+const ALL = VOCAB.flatMap(g => g.items.map(([ar, en]) => ({ ar, en, g: g.id })));
+
+function items() {
+  return state.group === "all" ? ALL : ALL.filter(i => i.g === state.group);
+}
+
+function renderGroups() {
+  const btns = [`<button data-g="all">All groups (${ALL.length})</button>`]
+    .concat(VOCAB.map(g => `<button data-g="${g.id}">${esc(g.title)} (${g.items.length})</button>`));
+  const el = document.getElementById("groups");
+  el.innerHTML = btns.join("");
+  el.querySelectorAll("button").forEach(b => {
+    b.classList.toggle("active", b.dataset.g === state.group);
+    b.onclick = () => { state.group = b.dataset.g; renderGroups(); render(); };
+  });
+}
+
+document.querySelectorAll("#modes button").forEach(b => {
+  b.onclick = () => {
+    state.mode = b.dataset.mode;
+    document.querySelectorAll("#modes button").forEach(x => x.classList.toggle("active", x === b));
+    render();
+  };
+});
+
+function render() {
+  stopSpeak();
+  if (state.mode === "list") renderList();
+  else if (state.mode === "flash") renderFlash();
+  else renderQuiz();
+}
+
+/* ---------- List ---------- */
+function renderList() {
+  const view = document.getElementById("view");
+  const groups = state.group === "all" ? VOCAB : VOCAB.filter(g => g.id === state.group);
+  view.innerHTML = `
+    <div class="row" style="margin-bottom:10px">
+      <input type="search" id="q" placeholder="Search English or Arabic…" value="${esc(state.search)}">
+      <label><input type="checkbox" id="hideEn"> Hide English (test yourself)</label>
+    </div>
+    <div id="lists"></div>`;
+  const draw = () => {
+    const q = state.search.trim().toLowerCase();
+    const hide = document.getElementById("hideEn").checked;
+    document.getElementById("lists").innerHTML = groups.map(g => {
+      const rows = g.items.filter(([ar, en]) => !q || en.toLowerCase().includes(q) || ar.includes(q) || ar.replace(/[ً-ْ]/g, "").includes(q));
+      if (!rows.length) return "";
+      return `<h3>${esc(g.title)} <span class="ar" lang="ar">${esc(g.titleAr)}</span></h3>
+        <div class="table-wrap"><table>
+        ${rows.map(([ar, en]) => `<tr>
+          <td style="width:40px">${sayBtn(ar)}</td>
+          <td class="ar" lang="ar">${esc(ar)}</td>
+          <td>${hide ? `<details><summary>show</summary>${esc(en)}</details>` : esc(en)}</td>
+        </tr>`).join("")}
+        </table></div>`;
+    }).join("") || "<p>No matches.</p>";
+  };
+  document.getElementById("q").oninput = e => { state.search = e.target.value; draw(); };
+  document.getElementById("hideEn").onchange = draw;
+  draw();
+}
+
+/* ---------- Flashcards ---------- */
+function renderFlash() {
+  const view = document.getElementById("view");
+  let deck = shuffle(items());
+  let i = 0, flipped = false, arFirst = true, known = 0;
+  view.innerHTML = `
+    <div class="row">
+      <label><input type="checkbox" id="dir" checked> Arabic first</label>
+      <span class="spacer"></span>
+      <span id="count"></span>
+    </div>
+    <div class="card flash" id="card"></div>
+    <div class="row">
+      <button class="ghost" id="prev">← Back</button>
+      <button class="ghost" id="again">😕 Again</button>
+      <button id="know">😀 I know it</button>
+      <span class="spacer"></span>
+      <button class="ghost" id="shuf">🔀 Shuffle</button>
+    </div>
+    <p class="lead" style="font-size:.9rem">Tap the card to flip. “Again” puts the card back later in the deck.</p>`;
+  const card = document.getElementById("card");
+  const draw = () => {
+    if (i >= deck.length) {
+      card.innerHTML = `<div class="front">🎉</div><div class="back">Finished! You knew ${known} cards first time. Press Shuffle to go again.</div>`;
+      document.getElementById("count").textContent = "";
+      return;
+    }
+    const c = deck[i];
+    const front = arFirst ? `<span class="ar" lang="ar">${esc(c.ar)}</span>` : esc(c.en);
+    const back = arFirst ? esc(c.en) : `<span class="ar" lang="ar">${esc(c.ar)}</span>`;
+    card.innerHTML = `<div class="front">${front}</div>
+      <div class="back">${flipped ? back : "tap to flip"}</div>
+      <div style="margin-top:8px">${sayBtn(c.ar)}</div>`;
+    document.getElementById("count").textContent = `${i + 1} / ${deck.length}`;
+  };
+  card.onclick = e => { if (e.target.closest("[data-say]")) return; flipped = !flipped; draw(); if (flipped) speak(deck[i]?.ar || ""); };
+  document.getElementById("prev").onclick = () => { if (i > 0) { i--; flipped = false; draw(); } };
+  document.getElementById("know").onclick = () => { if (i < deck.length) { known++; i++; flipped = false; draw(); } };
+  document.getElementById("again").onclick = () => {
+    if (i < deck.length) {
+      const c = deck.splice(i, 1)[0];
+      const pos = Math.min(deck.length, i + 3 + Math.floor(Math.random() * 3));
+      deck.splice(pos, 0, c);
+      flipped = false; draw();
+    }
+  };
+  document.getElementById("shuf").onclick = () => { deck = shuffle(items()); i = 0; known = 0; flipped = false; draw(); };
+  document.getElementById("dir").onchange = e => { arFirst = e.target.checked; flipped = false; draw(); };
+  draw();
+}
+
+/* ---------- Quiz ---------- */
+function renderQuiz() {
+  const view = document.getElementById("view");
+  const pool = items();
+  const qs = shuffle(pool).slice(0, Math.min(10, pool.length)).map((it, n) => {
+    const toEn = n % 2 === 0; // alternate directions
+    const sameGroup = ALL.filter(x => x.g === it.g && x.en !== it.en && x.ar !== it.ar);
+    const others = sameGroup.length >= 3 ? sameGroup : ALL.filter(x => x.en !== it.en && x.ar !== it.ar);
+    const wrong = shuffle(others).slice(0, 3);
+    const key = toEn ? "en" : "ar";
+    return {
+      prompt: toEn ? it.ar : it.en,
+      answer: it[key],
+      opts: shuffle([it[key], ...wrong.map(w => w[key])]),
+      say: it.ar,
+    };
+  });
+  let score = 0, done = 0;
+  view.innerHTML = qs.map((q, n) => `
+    <div class="q" id="vq${n}">
+      <span class="num">${n + 1}.</span> ${isArabic(q.prompt) ? "What does this mean?" : "Choose the Arabic for:"}
+      <span class="prompt-ar">${txt(q.prompt)} ${isArabic(q.prompt) ? sayBtn(q.prompt) : ""}</span>
+      <div class="opts">${q.opts.map(o => `<label class="${isArabic(o) ? "ar-opt" : ""}"><input type="radio" name="v${n}" value="${esc(o)}"> ${txt(o)}</label>`).join("")}</div>
+    </div>`).join("") + `<div class="card" id="vres" style="display:none"></div>`;
+  qs.forEach((q, n) => {
+    const box = document.getElementById("vq" + n);
+    box.querySelectorAll("input").forEach(inp => {
+      inp.onchange = () => {
+        const ok = inp.value === q.answer;
+        box.classList.add(ok ? "correct" : "wrong");
+        box.querySelectorAll("label").forEach(l => {
+          const v = l.querySelector("input").value;
+          if (v === q.answer) l.classList.add("is-answer");
+          else if (v === inp.value) l.classList.add("is-picked-wrong");
+          l.querySelector("input").disabled = true;
+        });
+        speak(q.say);
+        if (ok) score++;
+        done++;
+        if (done === qs.length) {
+          const r = document.getElementById("vres");
+          r.style.display = "block";
+          r.innerHTML = `<div class="result">Score: ${score} / ${qs.length} ${score === qs.length ? "🌟" : score >= qs.length * 0.8 ? "👍" : "💪 keep going"}</div>
+            <p><button id="again">New quiz</button></p>`;
+          document.getElementById("again").onclick = () => { renderQuiz(); window.scrollTo(0, 0); };
+          r.scrollIntoView({ behavior: "smooth" });
+        }
+      };
+    });
+  });
+}
+
+renderGroups();
+render();
+</script>
+</body>
+</html>

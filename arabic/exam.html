@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Practice Exam · Arabic Revision</title>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<main id="exam"></main>
+<div class="scorebar" id="bar">
+  <span id="progress"></span>
+  <button id="submit">Submit answers</button>
+  <button class="ghost" id="retryWrong" style="display:none">Redo wrong ones</button>
+  <button class="ghost" id="reset">Start again</button>
+</div>
+<script src="assets/app.js"></script>
+<script src="data/exams.js"></script>
+<script>
+const setId = new URLSearchParams(location.search).get("set") === "2" ? 2 : 1;
+renderHeader(setId === 2 ? "exam2" : "exam1");
+const EX = EXAMS[setId];
+const STORE = `arabic-exam-${setId}`;
+document.title = EX.title + " · Arabic Revision";
+
+// Flatten questions and give each a stable id; shuffle options once per load.
+let qn = 0;
+EX.sections.forEach((s, si) => s.questions.forEach(q => {
+  q.id = `q${++qn}`;
+  q.si = si;
+  q.answer = q.opts[0];
+  q.shown = shuffle(q.opts);
+}));
+const ALLQ = EX.sections.flatMap(s => s.questions);
+
+function questionHtml(q) {
+  return `<div class="q" id="${q.id}">
+    <span class="num">${q.id.slice(1)}.</span>${esc(q.q)}
+    ${q.ar ? `<span class="prompt-ar"><span class="ar" lang="ar">${esc(q.ar)}</span> ${sayBtn(q.ar.replace(/_+/g, " … "))}</span>` : ""}
+    <div class="opts">${q.shown.map(o => `<label class="${isArabic(o) ? "ar-opt" : ""}"><input type="radio" name="${q.id}" value="${esc(o)}"> ${txt(o)}</label>`).join("")}</div>
+    <div class="exp">💡 ${txt(q.exp)}</div>
+  </div>`;
+}
+
+function passageHtml(s, si) {
+  const paras = s.passage.split("\n\n").map(p => `<p class="ar" lang="ar">${esc(p)}</p>`).join("");
+  if (s.type === "listening") {
+    return `<div class="card">
+      <p>🎧 Press play and listen (you can listen <b>twice</b>, like in the real exam). Answer without reading the text first!</p>
+      <div class="row">
+        <button data-play="${si}" data-rate="0.8">▶ Play</button>
+        <button class="ghost" data-play="${si}" data-rate="0.6">🐢 Play slowly</button>
+        <button class="ghost" onclick="stopSpeak()">■ Stop</button>
+        <span class="spacer"></span>
+        <span id="plays${si}"></span>
+      </div>
+      <details style="margin-top:10px"><summary>Show transcript (after you answer)</summary>
+        <div class="passage" style="margin-top:8px"><b class="ar" lang="ar">${esc(s.passageTitle)}</b>${paras}</div>
+      </details>
+    </div>`;
+  }
+  return `<div class="passage"><b class="ar" lang="ar">${esc(s.passageTitle)}</b> ${sayBtn(s.passage)}${paras}</div>`;
+}
+
+function writingHtml(w) {
+  return `<h2 class="section-title">Section 6 · Writing <span class="ar" lang="ar">الكتابة</span></h2>
+    <div class="card">
+      <p><b>${esc(w.task)}</b></p>
+      <p class="ar" lang="ar">${esc(w.taskAr)}</p>
+      <h3>Plan — use these frames in order</h3>
+      <ul>${w.steps.map(s => `<li>${txt(s)}</li>`).join("")}</ul>
+      <h3>Your answer</h3>
+      <textarea id="writing" dir="rtl" lang="ar" placeholder="اُكْتُبْ هُنَا…"></textarea>
+      <p class="lead" style="font-size:.9rem">Saved automatically on this device. Words: <span id="wc">0</span></p>
+      <h3>Check yourself</h3>
+      <div>${w.checklist.map((c, i) => `<label style="display:block"><input type="checkbox" data-ck="${i}"> ${txt(c)}</label>`).join("")}</div>
+      <details style="margin-top:14px"><summary>Show model answer (only after you have written yours!)</summary>
+        <div class="passage" style="margin-top:8px">${sayBtn(w.model)}<p class="ar" lang="ar">${esc(w.model)}</p></div>
+      </details>
+    </div>`;
+}
+
+function render() {
+  const best = localStorage.getItem(STORE + "-best");
+  document.getElementById("exam").innerHTML = `
+    <span class="tag">Practice exam ${setId === 1 ? "A" : "B"}</span>
+    <h1>${esc(EX.title)}</h1>
+    <p class="lead">${esc(EX.intro)} ${ALLQ.length} multiple-choice questions + 1 writing task. ${best ? `<br>Best score so far: <b>${best}</b>` : ""}</p>
+    ${EX.sections.map((s, si) => `
+      <h2 class="section-title">${esc(s.title)} <span class="ar" lang="ar">${esc(s.titleAr)}</span></h2>
+      ${s.passage ? passageHtml(s, si) : ""}
+      ${s.questions.map(questionHtml).join("")}
+    `).join("")}
+    ${writingHtml(EX.writing)}
+    <div class="card" id="result" style="display:none"></div>`;
+
+  // listening playback
+  document.querySelectorAll("[data-play]").forEach(b => {
+    b.onclick = () => {
+      const si = +b.dataset.play;
+      speak(EX.sections[si].passage.replace(/\n/g, " "), +b.dataset.rate);
+      const k = `plays${si}`;
+      const n = (+(sessionStorage.getItem(STORE + k) || 0)) + 1;
+      sessionStorage.setItem(STORE + k, n);
+      document.getElementById(k).textContent = `played ${n}×`;
+    };
+  });
+
+  // restore answers
+  const saved = JSON.parse(localStorage.getItem(STORE) || "{}");
+  ALLQ.forEach(q => {
+    const v = saved[q.id];
+    if (v) {
+      const inp = [...document.querySelectorAll(`input[name="${q.id}"]`)].find(i => i.value === v);
+      if (inp) inp.checked = true;
+    }
+  });
+  document.querySelectorAll(".opts input").forEach(inp => inp.addEventListener("change", () => {
+    const s = JSON.parse(localStorage.getItem(STORE) || "{}");
+    s[inp.name] = inp.value;
+    localStorage.setItem(STORE, JSON.stringify(s));
+    updateProgress();
+  }));
+
+  // writing autosave
+  const ta = document.getElementById("writing");
+  ta.value = localStorage.getItem(STORE + "-writing") || "";
+  const wc = () => document.getElementById("wc").textContent = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
+  ta.oninput = () => { localStorage.setItem(STORE + "-writing", ta.value); wc(); };
+  wc();
+  const ck = JSON.parse(localStorage.getItem(STORE + "-ck") || "{}");
+  document.querySelectorAll("[data-ck]").forEach(c => {
+    c.checked = !!ck[c.dataset.ck];
+    c.onchange = () => { ck[c.dataset.ck] = c.checked; localStorage.setItem(STORE + "-ck", JSON.stringify(ck)); };
+  });
+
+  document.getElementById("submit").style.display = "";
+  document.getElementById("retryWrong").style.display = "none";
+  updateProgress();
+}
+
+function picked(q) {
+  const inp = document.querySelector(`input[name="${q.id}"]:checked`);
+  return inp ? inp.value : null;
+}
+
+function updateProgress() {
+  const n = ALLQ.filter(picked).length;
+  document.getElementById("progress").textContent = `Answered ${n} / ${ALLQ.length}`;
+}
+
+function grade() {
+  const missing = ALLQ.filter(q => !picked(q));
+  if (missing.length && !confirm(`${missing.length} question(s) not answered yet. Submit anyway?`)) {
+    document.getElementById(missing[0].id).scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+  let score = 0;
+  const bySec = EX.sections.map(() => [0, 0]);
+  ALLQ.forEach(q => {
+    const box = document.getElementById(q.id);
+    const p = picked(q);
+    const ok = p === q.answer;
+    if (ok) score++;
+    bySec[q.si][1]++;
+    if (ok) bySec[q.si][0]++;
+    box.classList.remove("correct", "wrong");
+    box.classList.add(ok ? "correct" : "wrong", "graded");
+    box.querySelectorAll("label").forEach(l => {
+      const inp = l.querySelector("input");
+      l.classList.remove("is-answer", "is-picked-wrong");
+      if (inp.value === q.answer) l.classList.add("is-answer");
+      else if (inp.value === p) l.classList.add("is-picked-wrong");
+      inp.disabled = true;
+    });
+  });
+  const pct = Math.round(score / ALLQ.length * 100);
+  const msg = pct >= 90 ? "🌟 Excellent!" : pct >= 75 ? "👍 Good — fix the red ones." : pct >= 50 ? "💪 Getting there — revise the Key Points page." : "📚 Go back to Key Points and Vocabulary, then try again.";
+  const res = document.getElementById("result");
+  res.style.display = "block";
+  res.innerHTML = `<div class="result">Score: ${score} / ${ALLQ.length} (${pct}%) — ${msg}</div>
+    <div class="table-wrap" style="margin-top:10px"><table>
+      ${EX.sections.map((s, i) => `<tr><td>${esc(s.title)}</td><td>${bySec[i][0]} / ${bySec[i][1]}</td></tr>`).join("")}
+    </table></div>
+    <p>Read the 💡 explanation under every red question. Then press <b>Redo wrong ones</b>.</p>`;
+  const prevBest = localStorage.getItem(STORE + "-bestPct");
+  if (!prevBest || pct > +prevBest) {
+    localStorage.setItem(STORE + "-bestPct", pct);
+    localStorage.setItem(STORE + "-best", `${score} / ${ALLQ.length} (${pct}%)`);
+  }
+  document.getElementById("submit").style.display = "none";
+  document.getElementById("retryWrong").style.display = score < ALLQ.length ? "" : "none";
+  res.scrollIntoView({ behavior: "smooth" });
+}
+
+function retryWrong() {
+  const s = JSON.parse(localStorage.getItem(STORE) || "{}");
+  ALLQ.forEach(q => {
+    const box = document.getElementById(q.id);
+    const wrong = picked(q) !== q.answer;
+    box.classList.remove("correct", "wrong", "graded");
+    box.style.display = wrong ? "" : "none";
+    box.querySelectorAll("label").forEach(l => {
+      l.classList.remove("is-answer", "is-picked-wrong");
+      const inp = l.querySelector("input");
+      inp.disabled = false;
+      if (wrong) inp.checked = false;
+    });
+    if (wrong) delete s[q.id];
+  });
+  localStorage.setItem(STORE, JSON.stringify(s));
+  document.getElementById("result").style.display = "none";
+  document.getElementById("submit").style.display = "";
+  document.getElementById("retryWrong").style.display = "none";
+  updateProgress();
+  const first = ALLQ.find(q => document.getElementById(q.id).style.display !== "none");
+  if (first) document.getElementById(first.id).scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+document.getElementById("submit").onclick = grade;
+document.getElementById("retryWrong").onclick = retryWrong;
+document.getElementById("reset").onclick = () => {
+  if (!confirm("Clear all multiple-choice answers and start again? (Your writing is kept.)")) return;
+  localStorage.removeItem(STORE);
+  stopSpeak();
+  // re-shuffle options
+  ALLQ.forEach(q => q.shown = shuffle(q.opts));
+  render();
+  window.scrollTo(0, 0);
+};
+
+render();
+</script>
+</body>
+</html>
