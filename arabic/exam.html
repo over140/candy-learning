@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Practice Exam · Arabic Revision</title>
-  <link rel="stylesheet" href="assets/style.css?v=20261101-3">
+  <link rel="stylesheet" href="assets/style.css?v=20261101-4">
 </head>
 <body>
 <main id="exam"></main>
@@ -14,8 +14,8 @@
   <button class="ghost" id="retryWrong" style="display:none">Redo wrong ones</button>
   <button class="ghost" id="reset">Start again</button>
 </div>
-<script src="assets/app.js?v=20261101-3"></script>
-<script src="data/exams.js?v=20261101-3"></script>
+<script src="assets/app.js?v=20261101-4"></script>
+<script src="data/exams.js?v=20261101-4"></script>
 <script>
 const setId = new URLSearchParams(location.search).get("set") === "2" ? 2 : 1;
 renderHeader(setId === 2 ? "exam2" : "exam1");
@@ -30,10 +30,26 @@ EX.sections.forEach((s, si) => s.questions.forEach(q => {
   q.si = si;
   q.answer = q.opts[0];
   q.shown = shuffle(q.opts);
+  // Bilingual questions (qAr + optsAr): Arabic shown, English behind the EN button.
+  if (q.qAr && q.optsAr) {
+    q.arOf = {};
+    q.opts.forEach((o, i) => { q.arOf[o] = q.optsAr[i]; });
+  }
 }));
 const ALLQ = EX.sections.flatMap(s => s.questions);
 
 function questionHtml(q) {
+  if (q.arOf) {
+    return `<div class="q bi" id="${q.id}">
+      <div class="qhead">
+        <span class="num">${q.id.slice(1)}.</span>
+        <span class="qtext"><span class="ar" lang="ar">${esc(q.qAr)}</span><span class="en">${esc(q.q)}</span></span>
+        <button type="button" class="en-toggle" data-en="${q.id}" aria-pressed="false" title="Show English">EN</button>
+      </div>
+      <div class="opts">${q.shown.map(o => `<label class="ar-opt"><input type="radio" name="${q.id}" value="${esc(o)}"> <span class="optbody"><span class="ar" lang="ar">${esc(q.arOf[o])}</span><span class="en">${esc(o)}</span></span></label>`).join("")}</div>
+      <div class="exp">💡 ${txt(q.exp)}</div>
+    </div>`;
+  }
   return `<div class="q" id="${q.id}">
     <span class="num">${q.id.slice(1)}.</span>${esc(q.q)}
     ${q.ar ? `<span class="prompt-ar"><span class="ar" lang="ar">${esc(q.ar)}</span> ${sayBtn(q.ar.replace(/_+/g, " … "))}</span>` : ""}
@@ -251,6 +267,17 @@ function render() {
   });
   document.querySelectorAll(".readalong .w").forEach(w => {
     w.onclick = () => readAlong(+w.dataset.si, 0.7, +w.dataset.i);
+  });
+
+  // EN button: show / hide English under the Arabic question and options.
+  document.querySelectorAll("[data-en]").forEach(b => {
+    b.onclick = () => {
+      const box = document.getElementById(b.dataset.en);
+      const on = !box.classList.contains("show-en");
+      box.classList.toggle("show-en", on);
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    };
   });
 
   // restore answers
