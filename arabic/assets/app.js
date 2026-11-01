@@ -38,21 +38,40 @@ if ("speechSynthesis" in window) {
   speechSynthesis.onvoiceschanged = pickVoice;
 }
 
-function speak(text, rate) {
+// Keep a reference to the current utterance: some browsers stop firing
+// events if the utterance object is garbage-collected.
+let currentUtterance = null;
+const stopListeners = [];
+
+// handlers (optional): { onstart, onboundary, onend }
+function speak(text, rate, handlers) {
   if (!("speechSynthesis" in window)) {
     alert("This browser cannot read text aloud. Try Safari or Chrome.");
-    return;
+    return null;
   }
-  speechSynthesis.cancel();
+  stopSpeak();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "ar-SA";
   if (arVoice) u.voice = arVoice;
   u.rate = rate || 0.85;
+  if (handlers) {
+    if (handlers.onstart) u.onstart = handlers.onstart;
+    if (handlers.onboundary) u.onboundary = handlers.onboundary;
+    if (handlers.onend) { u.onend = handlers.onend; u.onerror = handlers.onend; }
+  }
+  currentUtterance = u;
   speechSynthesis.speak(u);
+  return u;
 }
 
 function stopSpeak() {
+  stopListeners.forEach(fn => fn());
   if ("speechSynthesis" in window) speechSynthesis.cancel();
+  currentUtterance = null;
+}
+
+function onStopSpeak(fn) {
+  stopListeners.push(fn);
 }
 
 function sayBtn(text) {

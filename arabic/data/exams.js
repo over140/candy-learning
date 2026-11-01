@@ -331,3 +331,35 @@ const EXAMS = {
     },
   },
 };
+
+// Word-by-word English glosses for the listening passages (read-along mode).
+// One entry per space-separated Arabic word, in the same order as the passage.
+EXAMS[1].sections[0].gloss = [
+  "is considered", "ball", "foot → football", "and ball", "basket → basketball",
+  "among", "the sports", "team (sports)", "popular", "in", "the world",
+  "play", "people", "ball", "foot → football", "and ball", "basket → basketball",
+  "in / on", "pitches / courts", "rectangular", "(in) shape",
+  "in", "ball", "foot → football", "consists", "each", "team", "of", "eleven", "players",
+  "and consists", "the match", "of", "two halves", "length (of time)", "each", "half", "forty-five", "minutes",
+  "use", "the players", "their legs / feet", "in", "the playing",
+  "as for", "keeper", "the goal → goalkeeper", "so he can", "use", "his two hands", "also",
+  "as for", "ball", "basket → basketball", "so it is played by", "two teams",
+  "and in", "each", "team", "five", "players",
+  "and consists", "the match", "of", "two halves", "also",
+  "use", "the players", "their hands", "to score", "the points",
+  "and the team", "that", "scores", "points", "more", "wins", "the match",
+  "sport", "strengthens", "the body", "and helps", "with", "keeping", "(of)", "health",
+];
+
+EXAMS[2].sections[0].gloss = [
+  "tennis", "and ball", "feather → badminton", "two sports", "popular",
+  "in", "tennis", "plays", "a person", "against", "a person", "another",
+  "uses", "the player", "the racket", "and the ball",
+  "and plays", "on", "court", "tennis", "in", "the air", "open → outdoors",
+  "as for", "ball", "feather → badminton", "so it is played by", "people", "inside", "the hall",
+  "and hits", "the player", "the shuttlecock", "over", "the net",
+  "need", "both", "sports", "(for)", "speed", "and concentration",
+  "wins", "the player", "who", "collects", "points", "more",
+  "I", "play", "ball", "feather → badminton", "at", "the club", "every", "day", "Saturday",
+  "because it (is)", "enjoyable", "and helps", "with", "relaxation",
+];

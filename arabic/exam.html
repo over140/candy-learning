@@ -42,6 +42,136 @@ function questionHtml(q) {
   </div>`;
 }
 
+/* ---------- Read-along (word highlight while listening) ---------- */
+// TOKS[si] = [{ start, end, text }] — character offsets into the spoken text.
+const TOKS = {};
+
+function spokenText(s) {
+  // Same length as the passage, so character offsets stay aligned.
+  return s.passage.replace(/\n/g, " ");
+}
+
+function readAlongHtml(s, si) {
+  const text = s.passage;
+  const toks = [];
+  const re = /\S+/g;
+  let m;
+  while ((m = re.exec(text))) toks.push({ start: m.index, end: m.index + m[0].length, text: m[0] });
+  TOKS[si] = toks;
+  let html = "", para = [], prevEnd = 0;
+  toks.forEach((t, i) => {
+    if (para.length && text.slice(prevEnd, t.start).includes("\n\n")) {
+      html += `<p class="ar" lang="ar">${para.join(" ")}</p>`;
+      para = [];
+    }
+    para.push(`<span class="w" data-si="${si}" data-i="${i}">${esc(t.text)}</span>`);
+    prevEnd = t.end;
+  });
+  if (para.length) html += `<p class="ar" lang="ar">${para.join(" ")}</p>`;
+  return html;
+}
+
+const RA = { run: 0, timer: null, si: null, cur: -1 };
+
+function raClear() {
+  clearInterval(RA.timer);
+  RA.timer = null;
+  document.querySelectorAll(".readalong .w.hl, .readalong .w.done").forEach(w => w.classList.remove("hl", "done"));
+  document.querySelectorAll(".readalong .gloss").forEach(g => g.classList.remove("show"));
+  RA.cur = -1;
+}
+
+// Show the English meaning just under the highlighted Arabic word.
+function raGloss(si, w, idx) {
+  const box = document.getElementById(`ra${si}`);
+  const g = box && box.querySelector(".gloss");
+  if (!g) return;
+  const meaning = (EX.sections[si].gloss || [])[idx];
+  if (!meaning) { g.classList.remove("show"); return; }
+  g.textContent = meaning;
+  g.classList.add("show");
+  // Position relative to the passage box; keep the label inside its edges.
+  const bw = box.clientWidth, gw = g.offsetWidth;
+  let x = w.offsetLeft + w.offsetWidth / 2;
+  x = Math.max(gw / 2 + 4, Math.min(bw - gw / 2 - 4, x));
+  g.style.left = `${x}px`;
+  g.style.top = `${w.offsetTop + w.offsetHeight}px`;
+}
+onStopSpeak(() => { RA.run++; raClear(); });
+
+function raHighlight(si, idx) {
+  if (idx === RA.cur) return;
+  const box = document.getElementById(`ra${si}`);
+  if (!box) return;
+  const words = box.querySelectorAll(".w");
+  for (let i = Math.max(0, RA.cur); i < idx && i < words.length; i++) words[i].classList.add("done");
+  if (RA.cur >= 0 && words[RA.cur]) { words[RA.cur].classList.remove("hl"); words[RA.cur].classList.add("done"); }
+  const w = words[idx];
+  if (!w) return;
+  w.classList.add("hl");
+  RA.cur = idx;
+  raGloss(si, w, idx);
+  if (box.closest("details")?.open) w.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+// Estimated timing, used when the browser's voice does not send word events.
+function raEstimate(si, fromIdx, rate, run) {
+  const toks = TOKS[si];
+  const lettersPerSec = 13 * rate;
+  const times = [];
+  let t = 0;
+  for (let i = fromIdx; i < toks.length; i++) {
+    times.push(t);
+    const letters = toks[i].text.replace(/[ً-ْٰـ]/g, "").length;
+    t += (letters + 1.5) / lettersPerSec;
+    if (/[.،,؛:!؟?]$/.test(toks[i].text)) t += 0.45;
+  }
+  const t0 = performance.now();
+  clearInterval(RA.timer);
+  RA.timer = setInterval(() => {
+    if (run !== RA.run) return clearInterval(RA.timer);
+    const el = (performance.now() - t0) / 1000;
+    let k = 0;
+    while (k + 1 < times.length && times[k + 1] <= el) k++;
+    raHighlight(si, fromIdx + k);
+  }, 80);
+}
+
+function readAlong(si, rate, fromIdx) {
+  fromIdx = fromIdx || 0;
+  const toks = TOKS[si];
+  const base = toks[fromIdx].start;
+  const text = spokenText(EX.sections[si]).slice(base);
+  let gotBoundary = false;
+  speak(text, rate, {
+    onstart: () => {
+      if (run !== RA.run) return;
+      raHighlight(si, fromIdx);
+      setTimeout(() => {
+        if (run === RA.run && !gotBoundary) raEstimate(si, fromIdx, rate, run);
+      }, 700);
+    },
+    onboundary: e => {
+      if (run !== RA.run) return;
+      if (e.name && e.name !== "word") return;
+      if (!gotBoundary) { gotBoundary = true; clearInterval(RA.timer); }
+      const pos = base + e.charIndex;
+      let k = fromIdx;
+      while (k + 1 < toks.length && toks[k + 1].start <= pos) k++;
+      raHighlight(si, k);
+    },
+    onend: () => {
+      if (run !== RA.run) return;
+      clearInterval(RA.timer);
+      setTimeout(() => { if (run === RA.run) raClear(); }, 600);
+    },
+  });
+  // speak() calls stopSpeak(), which bumps RA.run — so take the id afterwards.
+  const run = RA.run;
+  RA.si = si;
+  RA.cur = -1;
+}
+
 function passageHtml(s, si) {
   const paras = s.passage.split("\n\n").map(p => `<p class="ar" lang="ar">${esc(p)}</p>`).join("");
   if (s.type === "listening") {
@@ -50,12 +180,14 @@ function passageHtml(s, si) {
       <div class="row">
         <button data-play="${si}" data-rate="0.8">▶ Play</button>
         <button class="ghost" data-play="${si}" data-rate="0.6">🐢 Play slowly</button>
+        <button class="ghost" data-readalong="${si}">📖 Read along</button>
         <button class="ghost" onclick="stopSpeak()">■ Stop</button>
         <span class="spacer"></span>
         <span id="plays${si}"></span>
       </div>
-      <details style="margin-top:10px"><summary>Show transcript (after you answer)</summary>
-        <div class="passage" style="margin-top:8px"><b class="ar" lang="ar">${esc(s.passageTitle)}</b>${paras}</div>
+      <details id="tr${si}" style="margin-top:10px"><summary>Show transcript (after you answer)</summary>
+        <p class="lead" style="font-size:.9rem;margin:8px 0 0">Words light up while they are read, with the English meaning underneath. Tap any word to start reading from there.</p>
+        <div class="passage readalong" id="ra${si}" style="margin-top:8px"><b class="ar" lang="ar">${esc(s.passageTitle)}</b>${readAlongHtml(s, si)}<div class="gloss" aria-live="polite"></div></div>
       </details>
     </div>`;
   }
@@ -95,15 +227,29 @@ function render() {
     <div class="card" id="result" style="display:none"></div>`;
 
   // listening playback
+  const countPlay = si => {
+    const k = `plays${si}`;
+    const n = (+(sessionStorage.getItem(STORE + k) || 0)) + 1;
+    sessionStorage.setItem(STORE + k, n);
+    document.getElementById(k).textContent = `played ${n}×`;
+  };
   document.querySelectorAll("[data-play]").forEach(b => {
     b.onclick = () => {
       const si = +b.dataset.play;
-      speak(EX.sections[si].passage.replace(/\n/g, " "), +b.dataset.rate);
-      const k = `plays${si}`;
-      const n = (+(sessionStorage.getItem(STORE + k) || 0)) + 1;
-      sessionStorage.setItem(STORE + k, n);
-      document.getElementById(k).textContent = `played ${n}×`;
+      readAlong(si, +b.dataset.rate);
+      countPlay(si);
     };
+  });
+  document.querySelectorAll("[data-readalong]").forEach(b => {
+    b.onclick = () => {
+      const si = +b.dataset.readalong;
+      document.getElementById(`tr${si}`).open = true;
+      readAlong(si, 0.7);
+      countPlay(si);
+    };
+  });
+  document.querySelectorAll(".readalong .w").forEach(w => {
+    w.onclick = () => readAlong(+w.dataset.si, 0.7, +w.dataset.i);
   });
 
   // restore answers
