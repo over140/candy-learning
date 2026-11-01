@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Practice Exam · Arabic Revision</title>
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=20261101-3">
 </head>
 <body>
 <main id="exam"></main>
@@ -14,8 +14,8 @@
   <button class="ghost" id="retryWrong" style="display:none">Redo wrong ones</button>
   <button class="ghost" id="reset">Start again</button>
 </div>
-<script src="assets/app.js"></script>
-<script src="data/exams.js"></script>
+<script src="assets/app.js?v=20261101-3"></script>
+<script src="data/exams.js?v=20261101-3"></script>
 <script>
 const setId = new URLSearchParams(location.search).get("set") === "2" ? 2 : 1;
 renderHeader(setId === 2 ? "exam2" : "exam1");
@@ -111,7 +111,8 @@ function raHighlight(si, idx) {
   w.classList.add("hl");
   RA.cur = idx;
   raGloss(si, w, idx);
-  if (box.closest("details")?.open) w.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  const det = box.closest("details");
+  if (det && det.open) w.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 // Estimated timing, used when the browser's voice does not send word events.
@@ -213,7 +214,7 @@ function writingHtml(w) {
 }
 
 function render() {
-  const best = localStorage.getItem(STORE + "-best");
+  const best = store.get(STORE + "-best");
   document.getElementById("exam").innerHTML = `
     <span class="tag">Practice exam ${setId === 1 ? "A" : "B"}</span>
     <h1>${esc(EX.title)}</h1>
@@ -229,8 +230,8 @@ function render() {
   // listening playback
   const countPlay = si => {
     const k = `plays${si}`;
-    const n = (+(sessionStorage.getItem(STORE + k) || 0)) + 1;
-    sessionStorage.setItem(STORE + k, n);
+    const n = (+(sess.get(STORE + k) || 0)) + 1;
+    sess.set(STORE + k, n);
     document.getElementById(k).textContent = `played ${n}×`;
   };
   document.querySelectorAll("[data-play]").forEach(b => {
@@ -253,7 +254,7 @@ function render() {
   });
 
   // restore answers
-  const saved = JSON.parse(localStorage.getItem(STORE) || "{}");
+  const saved = JSON.parse(store.get(STORE) || "{}");
   ALLQ.forEach(q => {
     const v = saved[q.id];
     if (v) {
@@ -262,22 +263,22 @@ function render() {
     }
   });
   document.querySelectorAll(".opts input").forEach(inp => inp.addEventListener("change", () => {
-    const s = JSON.parse(localStorage.getItem(STORE) || "{}");
+    const s = JSON.parse(store.get(STORE) || "{}");
     s[inp.name] = inp.value;
-    localStorage.setItem(STORE, JSON.stringify(s));
+    store.set(STORE, JSON.stringify(s));
     updateProgress();
   }));
 
   // writing autosave
   const ta = document.getElementById("writing");
-  ta.value = localStorage.getItem(STORE + "-writing") || "";
+  ta.value = store.get(STORE + "-writing") || "";
   const wc = () => document.getElementById("wc").textContent = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
-  ta.oninput = () => { localStorage.setItem(STORE + "-writing", ta.value); wc(); };
+  ta.oninput = () => { store.set(STORE + "-writing", ta.value); wc(); };
   wc();
-  const ck = JSON.parse(localStorage.getItem(STORE + "-ck") || "{}");
+  const ck = JSON.parse(store.get(STORE + "-ck") || "{}");
   document.querySelectorAll("[data-ck]").forEach(c => {
     c.checked = !!ck[c.dataset.ck];
-    c.onchange = () => { ck[c.dataset.ck] = c.checked; localStorage.setItem(STORE + "-ck", JSON.stringify(ck)); };
+    c.onchange = () => { ck[c.dataset.ck] = c.checked; store.set(STORE + "-ck", JSON.stringify(ck)); };
   });
 
   document.getElementById("submit").style.display = "";
@@ -329,10 +330,10 @@ function grade() {
       ${EX.sections.map((s, i) => `<tr><td>${esc(s.title)}</td><td>${bySec[i][0]} / ${bySec[i][1]}</td></tr>`).join("")}
     </table></div>
     <p>Read the 💡 explanation under every red question. Then press <b>Redo wrong ones</b>.</p>`;
-  const prevBest = localStorage.getItem(STORE + "-bestPct");
+  const prevBest = store.get(STORE + "-bestPct");
   if (!prevBest || pct > +prevBest) {
-    localStorage.setItem(STORE + "-bestPct", pct);
-    localStorage.setItem(STORE + "-best", `${score} / ${ALLQ.length} (${pct}%)`);
+    store.set(STORE + "-bestPct", pct);
+    store.set(STORE + "-best", `${score} / ${ALLQ.length} (${pct}%)`);
   }
   document.getElementById("submit").style.display = "none";
   document.getElementById("retryWrong").style.display = score < ALLQ.length ? "" : "none";
@@ -340,7 +341,7 @@ function grade() {
 }
 
 function retryWrong() {
-  const s = JSON.parse(localStorage.getItem(STORE) || "{}");
+  const s = JSON.parse(store.get(STORE) || "{}");
   ALLQ.forEach(q => {
     const box = document.getElementById(q.id);
     const wrong = picked(q) !== q.answer;
@@ -354,7 +355,7 @@ function retryWrong() {
     });
     if (wrong) delete s[q.id];
   });
-  localStorage.setItem(STORE, JSON.stringify(s));
+  store.set(STORE, JSON.stringify(s));
   document.getElementById("result").style.display = "none";
   document.getElementById("submit").style.display = "";
   document.getElementById("retryWrong").style.display = "none";
@@ -367,7 +368,7 @@ document.getElementById("submit").onclick = grade;
 document.getElementById("retryWrong").onclick = retryWrong;
 document.getElementById("reset").onclick = () => {
   if (!confirm("Clear all multiple-choice answers and start again? (Your writing is kept.)")) return;
-  localStorage.removeItem(STORE);
+  store.remove(STORE);
   stopSpeak();
   // re-shuffle options
   ALLQ.forEach(q => q.shown = shuffle(q.opts));

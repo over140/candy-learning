@@ -43,6 +43,9 @@ arabic/                 # 阿拉伯语 Year 8 · Sports & Hobbies 单元
 - `writing` 包含 `task / taskAr / steps / model / checklist`，范文默认折叠。
 - 用户进度存在浏览器 `localStorage`（键名前缀为 `arabic-exam-1` / `arabic-exam-2`），不上传到任何地方。
 - 修改数据后，用 `node --check arabic/data/*.js` 检查语法，并确认每题有 4 个不重复选项。
+- **缓存版本号（重要）**：所有 HTML 引用的 css/js 都带 `?v=YYYYMMDD-n`。**只要改了 `assets/` 或 `data/` 里的文件，就要把所有 HTML 里的版本号一起更新**，否则 iPad 等设备会把新 HTML 和缓存里的旧 JS 混在一起，导致页面空白（2026-11-01 已出过一次这个问题）。
+  - 批量替换：`sed -i '' -E 's/\?v=[0-9-]+/?v=新版本号/g' index.html arabic/*.html`
+- 兼容性：iPad Safari 可能是旧版本，避免使用 `?.`、`??` 等较新语法。读写本地存储统一用 `app.js` 里的 `store` / `sess`（出错时不会抛异常）。脚本出错会显示在页面顶部，方便截图排查。
 
 ## 阿拉伯语单元：来源与状态
 
@@ -60,3 +63,4 @@ arabic/                 # 阿拉伯语 Year 8 · Sports & Hobbies 单元
 
 - 2026-11-01：第一版。包括复习重点、词汇页、Exam A/B，已推送（提交 `f90448c`）。
 - 2026-11-01：听力部分增加跟读高亮和逐词英文释义；新增 `AGENTS.md` / `CLAUDE.md`。
+- 2026-11-01：修复 iPad 上 Exam 页面空白（缓存了旧 `app.js`）。资源文件加版本号，本地存储改为安全封装，页面会显示脚本错误。

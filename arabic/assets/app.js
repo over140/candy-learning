@@ -1,6 +1,37 @@
 // Shared helpers for the Arabic revision site.
 const AR_RE = /[؀-ۿ]/;
 
+// Show script errors on the page instead of a blank screen (helps debug on iPad).
+window.addEventListener("error", e => {
+  const main = document.querySelector("main");
+  if (!main) return;
+  const box = document.createElement("div");
+  box.className = "tip";
+  box.textContent = `⚠️ Something went wrong loading this page: ${e.message} (${(e.filename || "").split("/").pop()}:${e.lineno}). Try reloading the page.`;
+  main.prepend(box);
+});
+
+// Storage that never throws (private mode / blocked storage falls back to memory).
+function makeStore(kind) {
+  const mem = {};
+  let s = null;
+  try {
+    s = window[kind];
+    const k = "__test__";
+    s.setItem(k, "1");
+    s.removeItem(k);
+  } catch (err) {
+    s = null;
+  }
+  return {
+    get: k => { try { return s ? s.getItem(k) : (k in mem ? mem[k] : null); } catch (err) { return null; } },
+    set: (k, v) => { try { if (s) s.setItem(k, String(v)); else mem[k] = String(v); } catch (err) { mem[k] = String(v); } },
+    remove: k => { try { if (s) s.removeItem(k); } catch (err) { /* ignore */ } delete mem[k]; },
+  };
+}
+const store = makeStore("localStorage");
+const sess = makeStore("sessionStorage");
+
 function esc(s) {
   return String(s)
     .replace(/&/g, "&amp;")
