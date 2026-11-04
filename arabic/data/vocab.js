@@ -2,6 +2,60 @@
 // New Vocabulary slide, and the topic tables). Format: [Arabic, English].
 const VOCAB = [
   {
+    // Recommended words to memorise first (chosen 2026-11-04 from how often they
+    // appear in the texts, questions and writing frames). Every word here also
+    // appears in another group, so "All groups" leaves this group out.
+    // Format: [Arabic, English, why it matters, picture, memory hook]
+    //   picture: an emoji, or "svg:<name>" for a drawing in VOCAB_SVG below
+    //   hook: "🔗 Word family:" = same Arabic root · "👂 Sounds like:" = sound trick only
+    id: "top20",
+    title: "⭐ Top 20 — learn first",
+    titleAr: "أَهَمُّ ٢٠ كَلِمَة",
+    top: true,
+    items: [
+      ["رِيَاضَة / رِيَاضَات", "sport / sports", "Feminine → adjective + ة, use لِأَنَّهَا",
+        "🏅", "👂 Sounds like: ri-YAA-da ≈ Riyadh: picture the whole city of الرِّيَاض doing sport. 🔗 Word family: Same root as الرِّيَاض and رَوْضَة (garden / kindergarten)."],
+      ["هِوَايَة", "hobby", "Feminine: هِوَايَتِي المُفَضَّلَةُ هِيَ …",
+        "🎨", "👂 Sounds like: hi-WAA-ya ≈ Hawaii: my hobby is surfing in Hawaii 🏄. Plural هِوَايَات."],
+      ["فَرِيق", "team", "“How many players in each team?”",
+        "👥", "🔗 Word family: Same root as فِرْقَة (band / troupe) — a group of people together. 👂 Sounds like: fa-REEQ: the team on the FAR side."],
+      ["لَاعِب", "player", "Don't mix up: لُعْبَة game · مَلْعَب pitch",
+        "⛹️", "🔗 Word family: Root ل-ع-ب = play: لَعِبَ he played · أَلْعَبُ I play · لُعْبَة game · لَاعِب player · مَلْعَب place to play."],
+      ["مُبَارَاة", "match", "تَتَكَوَّنُ المُبَارَاةُ مِنْ شَوْطَيْنِ",
+        "🆚", "👂 Sounds like: mu-BAA-raa: a cow (moo 🐄) and a sheep (baa 🐑) play a MATCH."],
+      ["مَلْعَب", "pitch / court", "Rectangular; basketball court is made of wood",
+        "svg:pitch", "🔗 Word family: مَـ + لعب = the PLACE where you play. Same pattern: مَسْبَح pool (swim) · مَدْرَسَة school (study) · مَطْبَخ kitchen (cook)."],
+      ["شَوْط", "half (of a match)", "Football 45 min · basketball 20 min",
+        "svg:half", "👂 Sounds like: SHAWT ≈ “shoot”: in each half you shoot. Two halves = شَوْطَانِ / شَوْطَيْنِ."],
+      ["مُدَّة", "length of time", "مُدَّةُ كُلِّ شَوْطٍ …",
+        "⏳", "🔗 Word family: From مَدَّ = to stretch: time stretched out — HOW LONG? 👂 Sounds like: MUD-da: walking through mud takes a long time."],
+      ["يَتَكَوَّنُ مِنْ", "consists of", "Always with مِنْ · same as يَتَأَلَّفُ مِنْ",
+        "🧩", "🔗 Word family: Same root as كَوْن (universe) and كَانَ (was): what something is made of. Always say مِنْ = “of”."],
+      ["يَفُوزُ", "wins", "Also: يَخْسَرُ loses · يَتَعَادَلُ draws",
+        "🏆", "🔗 Word family: فَوْز win · فَائِز winner. The name فَوَّاز (Fawaz) means “very successful / winner”."],
+      ["يُسَجِّلُ", "scores", "Football: أَهْدَافًا (goals) · basketball: نِقَاطًا (points)",
+        "🥅", "🔗 Word family: Same root as سِجِلّ (register / record) and تَسْجِيل (recording): you RECORD a goal on the scoreboard."],
+      ["يَسْتَخْدِمُ", "uses", "Hands or feet — the key difference between the two sports",
+        "🖐️", "🔗 Word family: Same root as خِدْمَة (service) and خَادِم (server): you use something so it SERVES you."],
+      ["أُمَارِسُ", "I practise / do (a sport)", "Past مَارَسْتُ · future سَأُمَارِسُ",
+        "🏋️", "👂 Sounds like: u-MAA-ris ≈ “Mars”: astronauts practise every day before going to Mars 🚀. Noun: مُمَارَسَة (practice)."],
+      ["أُفَضِّلُ … عَلَى …", "I prefer … to …", "Last step of the writing paragraph",
+        "👍", "🔗 Word family: Same root as مُفَضَّل (favourite) and مِنْ فَضْلِكَ (please). My favourite = the one I prefer."],
+      ["يَحْتَاجُ إِلَى", "needs", "Compare equipment and skills",
+        "🎒", "🔗 Word family: حَاجَة = a need / a thing. Always with إِلَى (“to”): يَحْتَاجُ إِلَى كُرَةٍ."],
+      ["مَشْهُور / مَشْهُورَة", "popular / famous", "First sentence of the text + writing opener",
+        "⭐", "🔗 Word family: Same root as شَهْر (month) and تَشْتَهِرُ بِـ (is known for): famous = everyone hears about it every month."],
+      ["مُفِيد / مُفِيدَة لِلصِّحَّة", "good for health", "Benefits sentence · m / f agreement",
+        "🍎", "🔗 Word family: Same root as فَائِدَة (benefit, plural فَوَائِد). 👂 Sounds like: mu-FEED: good food FEEDS your health."],
+      ["لِأَنَّهُ / لِأَنَّهَا / لِأَنَّنِي", "because it (m) / it (f) / I", "Grammar reminder on both sheets",
+        "🤔", "🔗 Word family: لِأَنَّ + the same endings as كِتَابُهُ his book · كِتَابُهَا her book · ـنِي me. ـهُ = he/it · ـهَا = she/it · ـنِي = I."],
+      ["بَيْنَمَا", "whereas / while", "The main word for comparing two sports",
+        "⚖️", "🔗 Word family: بَيْنَ = between: put two sports side by side and look at what is between them."],
+      ["أَمَّا … فَـ …", "as for …", "Second part must start with فَـ",
+        "svg:asfor", "🚪 أَمَّا opens the door, فَـ walks in. No فَـ = the door stays open (mistake!)."],
+    ],
+  },
+  {
     id: "sports",
     title: "Sports",
     titleAr: "أسماء الرياضات",
@@ -326,3 +380,10 @@ const VOCAB = [
     ],
   },
 ];
+
+// Small drawings for words that emoji cannot show well (used by "svg:<name>").
+const VOCAB_SVG = {
+  pitch: '<svg viewBox="0 0 64 44" width="64" height="44" aria-label="pitch"><rect x="2" y="2" width="60" height="40" rx="3" fill="#3f9b57"/><rect x="2" y="2" width="60" height="40" rx="3" fill="none" stroke="#fff" stroke-width="2"/><line x1="32" y1="2" x2="32" y2="42" stroke="#fff" stroke-width="2"/><circle cx="32" cy="22" r="6" fill="none" stroke="#fff" stroke-width="2"/><rect x="2" y="13" width="9" height="18" fill="none" stroke="#fff" stroke-width="2"/><rect x="53" y="13" width="9" height="18" fill="none" stroke="#fff" stroke-width="2"/></svg>',
+  half: '<svg viewBox="0 0 48 48" width="48" height="48" aria-label="half"><circle cx="24" cy="24" r="20" fill="#fff" stroke="#1f2933" stroke-width="2.5"/><path d="M24 4 A20 20 0 0 1 24 44 Z" fill="#f59e0b"/><line x1="24" y1="4" x2="24" y2="44" stroke="#1f2933" stroke-width="2"/><text x="33" y="28" font-size="9" font-family="Arial" font-weight="700" text-anchor="middle" fill="#1f2933">½</text></svg>',
+  asfor: '<svg viewBox="0 0 96 44" width="96" height="44" aria-label="as for ... then"><rect x="58" y="6" width="34" height="32" rx="8" fill="#e3f3ec" stroke="#0f7a5c" stroke-width="2"/><text x="75" y="29" font-size="16" text-anchor="middle" fill="#0f7a5c" font-family="Geeza Pro, Arial">أمّا</text><path d="M56 22 H24" stroke="#c2410c" stroke-width="3" fill="none"/><path d="M30 15 L22 22 L30 29" stroke="#c2410c" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="22" r="10" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/><text x="12" y="28" font-size="16" text-anchor="middle" fill="#c2410c" font-family="Geeza Pro, Arial">فـ</text></svg>',
+};

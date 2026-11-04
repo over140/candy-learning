@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Vocabulary · Arabic Revision</title>
-  <link rel="stylesheet" href="assets/style.css?v=20261101-4">
+  <link rel="stylesheet" href="assets/style.css?v=20261104-4">
 </head>
 <body>
 <main>
@@ -20,21 +20,36 @@
 
   <div id="view"></div>
 </main>
-<script src="assets/app.js?v=20261101-4"></script>
-<script src="data/vocab.js?v=20261101-4"></script>
+<script src="assets/app.js?v=20261104-4"></script>
+<script src="data/vocab.js?v=20261104-4"></script>
 <script>
 renderHeader("vocab");
 
-const state = { group: "all", mode: "list", search: "" };
-const ALL = VOCAB.flatMap(g => g.items.map(([ar, en]) => ({ ar, en, g: g.id })));
+const state = { group: "top20", mode: "list", search: "" };
+// Every word, tagged with its group (used for quiz distractors).
+// Memory hooks are kept in data/vocab.js but hidden for now (2026-11-04). Set to true to show them again.
+const SHOW_HOOKS = false;
+
+const EVERY = VOCAB.flatMap(g => g.items.map(([ar, en, note, pic, hook]) => ({ ar, en, g: g.id, pic, hook })));
+
+// Picture cell: emoji, or an inline drawing from VOCAB_SVG ("svg:<name>").
+function picHtml(pic) {
+  if (!pic) return "";
+  if (pic.indexOf("svg:") === 0) return `<span class="pic svg">${VOCAB_SVG[pic.slice(4)] || ""}</span>`;
+  return `<span class="pic">${esc(pic)}</span>`;
+}
+// "All groups" leaves out recommendation groups (top: true): their words already appear elsewhere.
+const ALL = EVERY.filter(i => !VOCAB.find(g => g.id === i.g).top);
 
 function items() {
-  return state.group === "all" ? ALL : ALL.filter(i => i.g === state.group);
+  return state.group === "all" ? ALL : EVERY.filter(i => i.g === state.group);
 }
 
 function renderGroups() {
-  const btns = [`<button data-g="all">All groups (${ALL.length})</button>`]
-    .concat(VOCAB.map(g => `<button data-g="${g.id}">${esc(g.title)} (${g.items.length})</button>`));
+  const tab = g => `<button data-g="${g.id}">${esc(g.title)} (${g.items.length})</button>`;
+  const btns = VOCAB.filter(g => g.top).map(tab)
+    .concat([`<button data-g="all">All groups (${ALL.length})</button>`])
+    .concat(VOCAB.filter(g => !g.top).map(tab));
   const el = document.getElementById("groups");
   el.innerHTML = btns.join("");
   el.querySelectorAll("button").forEach(b => {
@@ -61,7 +76,7 @@ function render() {
 /* ---------- List ---------- */
 function renderList() {
   const view = document.getElementById("view");
-  const groups = state.group === "all" ? VOCAB : VOCAB.filter(g => g.id === state.group);
+  const groups = state.group === "all" ? VOCAB.filter(g => !g.top) : VOCAB.filter(g => g.id === state.group);
   view.innerHTML = `
     <div class="row" style="margin-bottom:10px">
       <input type="search" id="q" placeholder="Search English or Arabic…" value="${esc(state.search)}">
@@ -75,11 +90,16 @@ function renderList() {
       const rows = g.items.filter(([ar, en]) => !q || en.toLowerCase().includes(q) || ar.includes(q) || ar.replace(/[ً-ْ]/g, "").includes(q));
       if (!rows.length) return "";
       return `<h3>${esc(g.title)} <span class="ar" lang="ar">${esc(g.titleAr)}</span></h3>
-        <div class="table-wrap"><table>
-        ${rows.map(([ar, en]) => `<tr>
+        ${g.top && SHOW_HOOKS ? `<p class="lead" style="font-size:.9rem;margin:0 0 8px">🔗 Word family = real words from the same Arabic root · 👂 Sounds like = a sound trick to help you remember (not where the word comes from)</p>` : ""}
+        <div class="table-wrap"><table class="${g.top ? "top-table" : ""}">
+        ${g.top ? `<tr><th>#</th><th></th><th>Arabic</th><th>Picture</th><th>English</th>${SHOW_HOOKS ? "<th>Memory hook</th>" : ""}</tr>` : ""}
+        ${rows.map(([ar, en, note, pic, hook], n) => `<tr>
+          ${g.top ? `<td style="width:32px;color:var(--muted)">${n + 1}</td>` : ""}
           <td style="width:40px">${sayBtn(ar)}</td>
           <td class="ar" lang="ar">${esc(ar)}</td>
-          <td>${hide ? `<details><summary>show</summary>${esc(en)}</details>` : esc(en)}</td>
+          ${g.top ? `<td class="pic-cell">${picHtml(pic)}</td>` : ""}
+          <td>${(() => { const extra = note ? `<div class="note">💡 ${txt(note)}</div>` : ""; return hide ? `<details><summary>show</summary>${esc(en)}${extra}</details>` : esc(en) + extra; })()}</td>
+          ${g.top && SHOW_HOOKS ? `<td class="hook">${hook ? (hide ? `<details><summary>show</summary>${txt(hook)}</details>` : txt(hook)) : ""}</td>` : ""}
         </tr>`).join("")}
         </table></div>`;
     }).join("") || "<p>No matches.</p>";
@@ -119,8 +139,11 @@ function renderFlash() {
     const c = deck[i];
     const front = arFirst ? `<span class="ar" lang="ar">${esc(c.ar)}</span>` : esc(c.en);
     const back = arFirst ? esc(c.en) : `<span class="ar" lang="ar">${esc(c.ar)}</span>`;
+    const extra = flipped && (c.pic || (SHOW_HOOKS && c.hook))
+      ? `${c.pic ? `<div class="flash-pic">${picHtml(c.pic)}</div>` : ""}${SHOW_HOOKS && c.hook ? `<div class="flash-hook">${txt(c.hook)}</div>` : ""}`
+      : "";
     card.innerHTML = `<div class="front">${front}</div>
-      <div class="back">${flipped ? back : "tap to flip"}</div>
+      <div class="back">${flipped ? back : "tap to flip"}</div>${extra}
       <div style="margin-top:8px">${sayBtn(c.ar)}</div>`;
     document.getElementById("count").textContent = `${i + 1} / ${deck.length}`;
   };
@@ -146,7 +169,7 @@ function renderQuiz() {
   const pool = items();
   const qs = shuffle(pool).slice(0, Math.min(10, pool.length)).map((it, n) => {
     const toEn = n % 2 === 0; // alternate directions
-    const sameGroup = ALL.filter(x => x.g === it.g && x.en !== it.en && x.ar !== it.ar);
+    const sameGroup = EVERY.filter(x => x.g === it.g && x.en !== it.en && x.ar !== it.ar);
     const others = sameGroup.length >= 3 ? sameGroup : ALL.filter(x => x.en !== it.en && x.ar !== it.ar);
     const wrong = shuffle(others).slice(0, 3);
     const key = toEn ? "en" : "ar";

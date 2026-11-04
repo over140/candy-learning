@@ -25,7 +25,7 @@ arabic/                 # 阿拉伯语 Year 8 · Sports & Hobbies 单元
   exam.html?set=1|2     # 模拟考试 A / B
   assets/style.css      # 共用样式（.ar 类 = 阿拉伯语 RTL 字体）
   assets/app.js         # 共用函数：renderHeader、speak（ar-SA 语音）、shuffle、sayBtn、txt
-  data/vocab.js         # VOCAB：13 组，共 233 词，格式 [阿拉伯语, 英文]
+  data/vocab.js         # VOCAB：⭐ Top 20 推荐组 + 13 组共 233 词，格式 [阿拉伯语, 英文, 说明?, 图示?, 联想?]；VOCAB_SVG 是手绘小图
   data/exams.js         # EXAMS[1]、EXAMS[2]：分 sections 的选择题 + writing
 ```
 
@@ -42,6 +42,8 @@ arabic/                 # 阿拉伯语 Year 8 · Sports & Hobbies 单元
   - 优先用浏览器的 `onboundary` 事件定位；语音不报告进度时，按字母数估算节奏（`raEstimate`，约 13 字母/秒 × 语速）。
   - 英文释义来自 section 的 `gloss` 数组（写在 `exams.js` 末尾），**按空格分词逐一对应**。修改听力原文时必须同步修改 `gloss`，并核对词数与 `passage.match(/\S+/g).length` 相等。
 - `writing` 包含 `task / taskAr / steps / model / checklist`，范文默认折叠。
+- 词汇分组带 `top: true` 的是推荐记忆组（目前为 `top20`，2026-11-04 根据材料出现频率和写作框架挑选）：排在第一个、默认打开；列表中显示序号和 💡 说明（第三个元素）。这一组的词在其他分组里都有，所以 “All groups” 不计入它，避免重复。
+  - Top 20 每个词还有两列：**图示**（第 4 个元素，emoji 或 `svg:名称`，对应 `VOCAB_SVG` 中的手绘图，目前有 pitch / half / asfor）和**联想记忆**（第 5 个元素）。联想分两类：`🔗 Word family:` 表示同词根的真实词族（需保证语言上准确），`👂 Sounds like:` 表示谐音记忆法（只帮助记忆，不代表词源）。闪卡翻到背面时也会显示这两项。
 - 用户进度存在浏览器 `localStorage`（键名前缀为 `arabic-exam-1` / `arabic-exam-2`），不上传到任何地方。
 - 修改数据后，用 `node --check arabic/data/*.js` 检查语法，并确认每题有 4 个不重复选项。
 - **缓存版本号（重要）**：所有 HTML 引用的 css/js 都带 `?v=YYYYMMDD-n`。**只要改了 `assets/` 或 `data/` 里的文件，就要把所有 HTML 里的版本号一起更新**，否则 iPad 等设备会把新 HTML 和缓存里的旧 JS 混在一起，导致页面空白（2026-11-01 已出过一次这个问题）。
@@ -66,3 +68,6 @@ arabic/                 # 阿拉伯语 Year 8 · Sports & Hobbies 单元
 - 2026-11-01：听力部分增加跟读高亮和逐词英文释义；新增 `AGENTS.md` / `CLAUDE.md`。
 - 2026-11-01：修复 iPad 上 Exam 页面空白（缓存了旧 `app.js`）。资源文件加版本号，本地存储改为安全封装，页面会显示脚本错误。
 - 2026-11-01：听力题改为阿拉伯语题目和选项，每题加 EN 按钮显示英文（版本 `20261101-4`）。
+- 2026-11-04：词汇页新增 “⭐ Top 20 — learn first” 推荐记忆组，默认打开（版本 `20261104-1`）。
+- 2026-11-04：Top 20 增加图示（emoji + 3 张 SVG）和联想记忆两列，闪卡背面同步显示（版本 `20261104-2`）。
+- 2026-11-04：按用户要求先隐藏“联想记忆”列（含闪卡背面），数据仍保留；`vocab.html` 中 `SHOW_HOOKS = true` 可恢复（版本 `20261104-4`）。

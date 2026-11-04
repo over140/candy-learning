@@ -44,9 +44,25 @@ function isArabic(s) {
   return AR_RE.test(s);
 }
 
-// Wrap text in an Arabic span when it contains Arabic letters.
+// Runs of Arabic words (letters, diacritics, tatweel), allowing spaces, "/", "…"
+// and Arabic punctuation between words, so a phrase stays together.
+const AR_RUN_RE = /[؀-ۿ]+(?:[\s\/…\.،؟]+[؀-ۿ]+)*[،؟]?/g;
+const LATIN_RE = /[A-Za-z]/;
+
+// Text → HTML. Pure Arabic becomes one right-to-left span. Mixed English +
+// Arabic stays left-to-right, and only the Arabic pieces are wrapped, so the
+// English word order is not scrambled.
 function txt(s) {
-  return isArabic(s) ? `<span class="ar" lang="ar">${esc(s)}</span>` : esc(s);
+  s = String(s);
+  if (!isArabic(s)) return esc(s);
+  if (!LATIN_RE.test(s)) return `<span class="ar" lang="ar">${esc(s)}</span>`;
+  let out = "", last = 0, m;
+  AR_RUN_RE.lastIndex = 0;
+  while ((m = AR_RUN_RE.exec(s))) {
+    out += esc(s.slice(last, m.index)) + `<span class="ar" lang="ar">${esc(m[0])}</span>`;
+    last = m.index + m[0].length;
+  }
+  return out + esc(s.slice(last));
 }
 
 function shuffle(arr) {
